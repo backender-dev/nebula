@@ -1,0 +1,74 @@
+services:
+  postgres:
+    container_name: postgres
+    image: postgres:16-alpine
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - ${POSTGRES_PORT}:5432
+    networks:
+      - internal
+    volumes:
+      - postgres:/var/lib/postgresql/data
+
+  temporal:
+    container_name: temporal
+    depends_on:
+      - postgres
+    environment:
+      - DB=postgres12
+      - DB_PORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PWD=${POSTGRES_PASSWORD}
+      - POSTGRES_SEEDS=postgres
+    image: temporalio/auto-setup:1.26
+    ports:
+      - 7233:7233
+    networks:
+      - internal
+
+  temporal-admin-tools:
+    container_name: temporal-admin-tools
+    depends_on:
+      - temporal
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CLI_ADDRESS=temporal:7233
+    image: temporalio/admin-tools:1.26
+    stdin_open: true
+    tty: true
+    networks:
+      - internal
+
+  temporal-ui:
+    container_name: temporal-ui
+    depends_on:
+      - temporal
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+    image: temporalio/ui:2.35.0
+    ports:
+      - 8781:8080
+    networks:
+      - internal
+
+  # app:
+  #   build: .
+  #   restart: always
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     POSTGRES_HOST: postgres
+  #   ports:
+  #     - '${PORT}:${PORT}'
+  #   networks:
+  #     - internal
+  #   depends_on:
+  #     - postgres
+
+volumes:
+  postgres:
+
+networks:
+  internal:
